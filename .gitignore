@@ -1,0 +1,15 @@
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+
+# Local virtual environments
+.venv/
+venv/
+
+# Generated files
+*_cover.pdf
+*_cover.docx
+*.zip
+
+# OS junk
+.DS_Store

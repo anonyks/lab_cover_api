@@ -1,0 +1,333 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, Response
+from pydantic import BaseModel
+
+from cover_api import generate_cover_pdf
+
+
+app = FastAPI(title="Thapathali Cover API", version="1.0.0")
+
+
+UI_HTML = """
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thapathali Cover Generator</title>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --ink: #0f172a;
+            --muted: #475569;
+            --line: #dbe2ea;
+            --brand: #1e40af;
+            --brand-2: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            color: var(--ink);
+            background: radial-gradient(1200px 700px at 20% -10%, #dbeafe, transparent), var(--bg);
+        }
+        .wrap {
+            max-width: 900px;
+            margin: 28px auto;
+            padding: 0 16px;
+        }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+        h1 { margin: 0 0 8px; font-size: 28px; }
+        p.sub { margin: 0 0 24px; color: var(--muted); }
+        form { margin: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field.full { grid-column: 1 / -1; }
+        label { font-size: 13px; color: var(--muted); }
+        input[type="text"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0 12px;
+            font-size: 14px;
+            outline: none;
+            background: #fff;
+        }
+        input[type="text"]:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--brand-2);
+        }
+        .actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        button {
+            height: 42px;
+            border: 0;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--brand), var(--brand-2));
+            color: #fff;
+            padding: 0 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+        .status { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 20px; }
+        .err { color: #b91c1c; }
+        .ok { color: #166534; }
+        @media (max-width: 760px) {
+            .wrap { margin: 14px auto; }
+            .card { padding: 16px; border-radius: 12px; }
+            h1 { font-size: 24px; }
+            .grid { grid-template-columns: 1fr; }
+            .actions { flex-direction: column; align-items: stretch; }
+            .actions button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="card">
+            <h1>Thapathali Cover Generator</h1>
+            <p class="sub">Fill only what you need. ID is required, other fields are optional.</p>
+
+            <form id="cover-form">
+                <div class="grid">
+                    <div class="field">
+                        <label for="id">ID *</label>
+                        <input type="text" id="id" name="id" placeholder="14 or 081BCT014 or THA081BCT014" required />
+                    </div>
+                    <div class="field">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" placeholder="john doe" />
+                    </div>
+
+                    <div class="field">
+                        <label for="labnum">Lab Number</label>
+                        <input type="text" id="labnum" name="labnum" placeholder="3" />
+                    </div>
+                    <div class="field">
+                        <label for="title">Report Title</label>
+                        <input type="text" id="title" name="title" placeholder="Signals" />
+                    </div>
+
+                    <div class="field full">
+                        <label for="depart">Department (optional override)</label>
+                        <input type="text" id="depart" name="depart" placeholder="Department of electronics and computer enginerring (default)" />
+                    </div>
+
+                    <div class="field">
+                        <label>Date Option (today)</label>
+                        <label class="toggle"><input id="date_today" type="checkbox" /> Use today's English date</label>
+                        <input type="text" id="date_value" placeholder="Or type date: YYYY-MM-DD" />
+                    </div>
+                    <div class="field">
+                        <label>&nbsp;</label>
+                        <label class="toggle"><input id="npdate_today" type="checkbox" /> Use today's Nepali date</label>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit">Generate PDF</button>
+                    <label class="toggle"><input id="color" type="checkbox" /> Color output</label>
+                </div>
+            </form>
+
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('cover-form');
+        const statusEl = document.getElementById('status');
+        const dateTodayEl = document.getElementById('date_today');
+        const npdateTodayEl = document.getElementById('npdate_today');
+        const dateValueEl = document.getElementById('date_value');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+        function pick(v) {
+            const t = (v || '').trim();
+            return t.length ? t : undefined;
+        }
+
+        dateTodayEl.addEventListener('change', () => {
+            if (dateTodayEl.checked) {
+                npdateTodayEl.checked = false;
+                dateValueEl.value = '';
+            }
+        });
+
+        npdateTodayEl.addEventListener('change', () => {
+            if (npdateTodayEl.checked) {
+                dateTodayEl.checked = false;
+                dateValueEl.value = '';
+            }
+        });
+
+        dateValueEl.addEventListener('input', () => {
+            if (dateValueEl.value.trim()) {
+                dateTodayEl.checked = false;
+                npdateTodayEl.checked = false;
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idValue = document.getElementById('id').value.trim();
+            if (!idValue) {
+                statusEl.className = 'status err';
+                statusEl.textContent = 'ID is required.';
+                return;
+            }
+
+            if (submitBtn.disabled) {
+                return;
+            }
+
+            submitBtn.disabled = true;
+            statusEl.className = 'status';
+            statusEl.textContent = 'Generating...';
+
+            const dateValue = pick(dateValueEl.value);
+
+            if (dateValue && !DATE_RE.test(dateValue)) {
+                statusEl.className = 'status err';
+                statusEl.textContent = 'Date must be YYYY-MM-DD.';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            const selectedModes = (dateTodayEl.checked ? 1 : 0) + (npdateTodayEl.checked ? 1 : 0) + (dateValue ? 1 : 0);
+            if (selectedModes > 1) {
+                statusEl.className = 'status err';
+                statusEl.textContent = 'Use only one date mode: English today, Nepali today, or typed date.';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            const payload = {
+                id: idValue,
+                name: pick(document.getElementById('name').value),
+                labnum: pick(document.getElementById('labnum').value),
+                title: pick(document.getElementById('title').value),
+                depart: pick(document.getElementById('depart').value),
+                date: dateTodayEl.checked ? 'today' : dateValue,
+                npdate: npdateTodayEl.checked,
+                color: document.getElementById('color').checked,
+            };
+
+            try {
+                const res = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!res.ok) {
+                    let msg = 'Request failed';
+                    try {
+                        const err = await res.json();
+                        msg = err.detail || msg;
+                    } catch (_) {}
+                    throw new Error(msg);
+                }
+
+                const blob = await res.blob();
+                const disposition = res.headers.get('Content-Disposition') || '';
+                const match = disposition.match(/filename="?([^";]+)"?/i);
+                const serverFileName = match ? match[1] : null;
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = serverFileName || (payload.id || 'cover') + '_cover.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(a.href);
+
+                statusEl.className = 'status ok';
+                statusEl.textContent = 'PDF generated and downloaded.';
+            } catch (err) {
+                statusEl.className = 'status err';
+                statusEl.textContent = err.message || String(err);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
+
+class CoverRequest(BaseModel):
+    id: str
+    name: Optional[str] = None
+    labnum: Optional[str] = None
+    title: Optional[str] = None
+    depart: Optional[str] = None
+    date: Optional[str] = None
+    npdate: bool = False
+    color: bool = False
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/", response_class=HTMLResponse)
+def ui() -> str:
+    return UI_HTML
+
+
+@app.post("/generate")
+def generate_cover(payload: CoverRequest) -> Response:
+    try:
+        roll_no, pdf_bytes = generate_cover_pdf(
+            student_id=payload.id,
+            name=payload.name,
+            lab_num=payload.labnum,
+            title=payload.title,
+            department=payload.depart,
+            date=payload.date,
+            npdate=payload.npdate,
+            color=payload.color,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{roll_no}_cover.pdf"'},
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("cover_api_server:app", host="127.0.0.1", port=8008, reload=False)
