@@ -8,8 +8,10 @@ venv/
 
 # Generated files
 *_cover.pdf
-*_cover.docx
 *.zip
+bct_info/*.pdf
+logs/
+.~lock.*
 
 # OS junk
 .DS_Store

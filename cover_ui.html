@@ -82,6 +82,7 @@
         .status { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 20px; }
         .err { color: #b91c1c; }
         .ok { color: #166534; }
+        .hidden { display: none !important; }
         @media (max-width: 760px) {
             .wrap { margin: 14px auto; }
             .card { padding: 16px; border-radius: 12px; }
@@ -96,7 +97,7 @@
     <div class="wrap">
         <div class="card">
             <h1>Thapathali Cover Generator</h1>
-            <p class="sub">Fill only what you need. ID is required, other fields are optional.</p>
+            <p id="mode-hint" class="sub">Fill only what you need. ID is required, other fields are optional.</p>
 
             <form id="cover-form">
                 <div class="grid">
@@ -104,31 +105,31 @@
                         <label for="id">ID *</label>
                         <input type="text" id="id" name="id" placeholder="14 or 081BCT014 or THA081BCT014" required />
                     </div>
-                    <div class="field">
+                    <div id="field-name" class="field">
                         <label for="name">Name</label>
                         <input type="text" id="name" name="name" placeholder="john doe" />
                     </div>
 
-                    <div class="field">
+                    <div id="field-labnum" class="field">
                         <label for="labnum">Lab Number</label>
                         <input type="text" id="labnum" name="labnum" placeholder="3" />
                     </div>
-                    <div class="field">
+                    <div id="field-title" class="field">
                         <label for="title">Report Title</label>
                         <input type="text" id="title" name="title" placeholder="Signals" />
                     </div>
 
-                    <div class="field full">
+                    <div id="field-depart" class="field full">
                         <label for="depart">Department (optional override)</label>
                         <input type="text" id="depart" name="depart" placeholder="Department of electronics and computer enginerring (default)" />
                     </div>
 
-                    <div class="field">
+                    <div id="field-date-en" class="field">
                         <label>Date Option (today)</label>
                         <label class="toggle"><input id="date_today" type="checkbox" /> Use today's English date</label>
                         <input type="text" id="date_value" placeholder="Or type date: YYYY-MM-DD" />
                     </div>
-                    <div class="field">
+                    <div id="field-date-np" class="field">
                         <label>&nbsp;</label>
                         <label class="toggle"><input id="npdate_today" type="checkbox" /> Use today's Nepali date</label>
                     </div>
@@ -136,6 +137,7 @@
 
                 <div class="actions">
                     <button type="submit">Generate PDF</button>
+                    <label class="toggle"><input id="nummeth" type="checkbox" /> Nummeth template</label>
                     <label class="toggle"><input id="color" type="checkbox" /> Color output</label>
                 </div>
             </form>
@@ -150,6 +152,15 @@
         const dateTodayEl = document.getElementById('date_today');
         const npdateTodayEl = document.getElementById('npdate_today');
         const dateValueEl = document.getElementById('date_value');
+        const nummethEl = document.getElementById('nummeth');
+        const modeHintEl = document.getElementById('mode-hint');
+        const titleEl = document.getElementById('title');
+        const departEl = document.getElementById('depart');
+        const labnumEl = document.getElementById('labnum');
+        const fieldTitleEl = document.getElementById('field-title');
+        const fieldDepartEl = document.getElementById('field-depart');
+        const fieldDateEnEl = document.getElementById('field-date-en');
+        const fieldDateNpEl = document.getElementById('field-date-np');
         const submitBtn = form.querySelector('button[type="submit"]');
         const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -178,6 +189,38 @@
                 npdateTodayEl.checked = false;
             }
         });
+
+        function setNummethMode(enabled) {
+            fieldTitleEl.classList.toggle('hidden', enabled);
+            fieldDepartEl.classList.toggle('hidden', enabled);
+            fieldDateEnEl.classList.toggle('hidden', enabled);
+            fieldDateNpEl.classList.toggle('hidden', enabled);
+
+            titleEl.disabled = enabled;
+            departEl.disabled = enabled;
+            dateTodayEl.disabled = enabled;
+            npdateTodayEl.disabled = enabled;
+            dateValueEl.disabled = enabled;
+
+            if (enabled) {
+                // Nummeth template only needs student, roll and lab placeholders.
+                titleEl.value = '';
+                departEl.value = '';
+                dateTodayEl.checked = false;
+                npdateTodayEl.checked = false;
+                dateValueEl.value = '';
+                labnumEl.placeholder = 'Optional (default: ..........)';
+                submitBtn.textContent = 'Generate Nummeth PDF';
+                modeHintEl.textContent = 'Nummeth mode: only ID is required. Name and Lab Number are optional; other fields are hidden.';
+            } else {
+                labnumEl.placeholder = '3';
+                submitBtn.textContent = 'Generate PDF';
+                modeHintEl.textContent = 'Fill only what you need. ID is required, other fields are optional.';
+            }
+        }
+
+        nummethEl.addEventListener('change', () => setNummethMode(nummethEl.checked));
+        setNummethMode(nummethEl.checked);
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -222,6 +265,7 @@
                 date: dateTodayEl.checked ? 'today' : dateValue,
                 npdate: npdateTodayEl.checked,
                 color: document.getElementById('color').checked,
+                nummeth: nummethEl.checked,
             };
 
             try {

@@ -32,6 +32,7 @@ class CoverRequest(BaseModel):
     date: Optional[str] = None
     npdate: bool = False
     color: bool = False
+    nummeth: bool = False
 
 
 @app.get("/health")
@@ -59,6 +60,7 @@ def generate_cover(payload: CoverRequest):
             date=payload.date,
             npdate=payload.npdate,
             color=payload.color,
+            nummeth=payload.nummeth,
         )
     except Exception as exc:
         # Keep API errors readable for frontend and quick manual testing.

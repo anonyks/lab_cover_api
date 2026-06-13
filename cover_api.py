@@ -19,8 +19,9 @@ except ImportError:
 
 
 BASE_DIR = Path(__file__).resolve().parent
-TEMPLATE_PATH = BASE_DIR / "bct_cover" / "Cover_template.docx"
-CSV_PATH = BASE_DIR / "bct_cover" / "BCT081_students_data.csv"
+TEMPLATE_PATH = BASE_DIR / "bct_info" / "Cover_template.docx"
+NUMMETH_TEMPLATE_PATH = BASE_DIR / "bct_info" / "nummeth_cover.docx"
+CSV_PATH = BASE_DIR / "bct_info" / "BCT081_students_data.csv"
 
 # Three accepted ID shapes: bare number (14), short (081BCT014), full (THA081BCT014)
 ID_NUMERIC_RE = re.compile(r"\d{1,3}")
@@ -31,10 +32,13 @@ ID_THA_RE = re.compile(r"THA\d{3}BCT\d{3}")
 def usage():
     return (
         "Usage:\n"
-        "  cover_api.py --id=\"ID\" [--labnum=LAB_NO] [--title=\"TITLE\"] [--name=\"NAME\"] [--depart=\"DEPARTMENT\"] [--date[=YYYY-MM-DD] | --npdate] [--color]\n\n"
+        "  cover_api.py --id=\"ID\" [--labnum=LAB_NO] [--title=\"TITLE\"] [--name=\"NAME\"] [--depart=\"DEPARTMENT\"] [--date[=YYYY-MM-DD] | --npdate] [--color] [--nummeth]\n\n"
         "Defaults:\n"
         "  Output is grayscale by default.\n"
         "  Use --color to keep the original colored PDF.\n\n"
+        "Nummeth mode:\n"
+        "  --nummeth        uses bct_info/nummeth_cover.docx template.\n"
+        "  In this mode, if --labnum is omitted, it defaults to ..........\n\n"
         "Date flags:\n"
         "  --date           uses today's English date (YYYY-MM-DD).\n"
         "  --npdate         uses today's Nepali date (YYYY-MM-DD).\n"
@@ -49,6 +53,7 @@ def usage():
         "  cover_api.py --labnum=1 --title=\"Digital Logic\" --id=\"14\" --date\n"
         "  cover_api.py --labnum=1 --title=\"Digital Logic\" --id=\"14\" --npdate\n"
         "  cover_api.py --labnum=1 --title=\"Digital Logic\" --id=\"14\" --date=2026-06-08\n"
+        "  cover_api.py --nummeth --id=\"14\" --labnum=1\n"
         "  cover_api.py --labnum=2 --title=\"Microprocessor\" --id=\"081BCT014\"\n"
         "  cover_api.py --labnum=3 --title=\"Signals\" --id=\"tha081bct014\" --name=\"john doe\"\n"
         "  cover_api.py --id=\"14\" --depart=\"Department of Computer Engineering\""
@@ -125,9 +130,12 @@ def split_department_text(department, width=22):
 
 def update_document_xml(xml, *, name, roll_no, lab_num, report_title, department, submission_date):
     xml = replace_split_placeholder(xml, "student_name", name, " ")
+    # New template uses {{roll_num}}; keep {{roll_no}} fallback for compatibility.
+    xml = replace_split_placeholder(xml, "roll_num", roll_no, ": ")
     xml = replace_split_placeholder(xml, "roll_no", roll_no, ": ")
 
     if lab_num is not None:
+        xml = replace_split_placeholder(xml, "lab_num", lab_num, "")
         escaped_lab_num = html.escape(lab_num, quote=True)
         xml = re.sub(
             r"Lab Report No:\s*[\.…]+",
@@ -362,16 +370,33 @@ def parse_args(argv):
     date_group.add_argument("--date", nargs="?", const="today", dest="date")
     date_group.add_argument("--npdate", action="store_true", dest="npdate")
     parser.add_argument("--color", action="store_true", dest="force_color")
+    parser.add_argument("--nummeth", action="store_true", dest="nummeth")
     parser.add_argument("-h", "--help", action="store_true", dest="help")
     return parser.parse_known_args(argv[1:])
 
 
-def generate_cover_pdf(*, student_id, name=None, lab_num=None, title=None, department=None, date=None, npdate=False, color=False):
-    if not TEMPLATE_PATH.exists() or not CSV_PATH.exists():
+def generate_cover_pdf(
+    *,
+    student_id,
+    name=None,
+    lab_num=None,
+    title=None,
+    department=None,
+    date=None,
+    npdate=False,
+    color=False,
+    nummeth=False,
+):
+    selected_template = NUMMETH_TEMPLATE_PATH if nummeth else TEMPLATE_PATH
+
+    if not selected_template.exists() or not CSV_PATH.exists():
         raise ValueError(
-            "Missing template or CSV in bct_cover folder. "
-            f"Expected: {TEMPLATE_PATH} and {CSV_PATH}"
+            "Missing template or CSV in bct_info folder. "
+            f"Expected: {selected_template} and {CSV_PATH}"
         )
+
+    if nummeth and lab_num is None:
+        lab_num = "........"
 
     submission_date = resolve_submission_date(date, npdate=npdate)
     roll_no = normalize_student_id(student_id)
@@ -389,7 +414,10 @@ def generate_cover_pdf(*, student_id, name=None, lab_num=None, title=None, depar
     if lab_num is not None:
         lab_num = lab_num.strip()
         if not lab_num:
-            raise ValueError("--labnum cannot be empty.")
+            if nummeth:
+                lab_num = ".........."
+            else:
+                raise ValueError("--labnum cannot be empty.")
 
     if title is not None:
         title = title.strip()
@@ -402,7 +430,7 @@ def generate_cover_pdf(*, student_id, name=None, lab_num=None, title=None, depar
             raise ValueError("--depart cannot be empty.")
 
     docx_bytes = fill_template(
-        TEMPLATE_PATH,
+        selected_template,
         resolved_name,
         roll_no,
         lab_num,
@@ -443,6 +471,7 @@ def main(argv):
             date=args.date,
             npdate=args.npdate,
             color=args.force_color,
+            nummeth=args.nummeth,
         )
     except Exception as exc:
         print(f"Failed to generate cover: {exc}")
