@@ -32,10 +32,7 @@ ID_THA_RE = re.compile(r"THA\d{3}BCT\d{3}")
 def usage():
     return (
         "Usage:\n"
-        "  cover_api.py --id=\"ID\" [--labnum=LAB_NO] [--title=\"TITLE\"] [--name=\"NAME\"] [--depart=\"DEPARTMENT\"] [--date[=YYYY-MM-DD] | --npdate] [--color] [--nummeth]\n\n"
-        "Defaults:\n"
-        "  Output is grayscale by default.\n"
-        "  Use --color to keep the original colored PDF.\n\n"
+        "  cover_api.py --id=\"ID\" [--labnum=LAB_NO] [--title=\"TITLE\"] [--name=\"NAME\"] [--depart=\"DEPARTMENT\"] [--date[=YYYY-MM-DD] | --npdate] [--nummeth]\n\n"
         "Nummeth mode:\n"
         "  --nummeth        uses bct_info/nummeth_cover.docx template.\n"
         "  In this mode, if --labnum is omitted, it defaults to ..........\n\n"
@@ -276,26 +273,6 @@ def _libreoffice_command():
     return None
 
 
-def _ghostscript_command():
-    for cmd in ("gs", "ghostscript", "gswin64c", "gswin64c.exe", "gswin32c", "gswin32c.exe"):
-        if shutil.which(cmd):
-            return cmd
-
-    # Windows fallback: Ghostscript is commonly installed outside PATH.
-    gs_roots = (Path("C:/Program Files/gs"), Path("C:/Program Files (x86)/gs"))
-    for root in gs_roots:
-        if not root.exists():
-            continue
-        candidates = sorted(root.glob("gs*/bin/gswin64c.exe"), reverse=True)
-        if candidates:
-            return str(candidates[0])
-        candidates32 = sorted(root.glob("gs*/bin/gswin32c.exe"), reverse=True)
-        if candidates32:
-            return str(candidates32[0])
-
-    return None
-
-
 def convert_docx_to_pdf(docx_bytes, roll_no):
     cmd = _libreoffice_command()
     if not cmd:
@@ -320,45 +297,6 @@ def convert_docx_to_pdf(docx_bytes, roll_no):
         return pdf_file.read_bytes()
 
 
-def convert_pdf_to_grayscale(pdf_bytes, roll_no):
-    gs = _ghostscript_command()
-    if not gs:
-        raise RuntimeError(
-            "Ghostscript not found. Install it with 'brew install ghostscript' or run with --color."
-        )
-
-    with tempfile.TemporaryDirectory(prefix=f"gray_{roll_no}_") as td:
-        tmp_dir = Path(td)
-        in_pdf = tmp_dir / "in.pdf"
-        out_pdf = tmp_dir / "out.pdf"
-        in_pdf.write_bytes(pdf_bytes)
-
-        # -dOverrideICC forces all ICC color profiles to be ignored so
-        # everything truly comes out gray, not just tagged as gray.
-        proc = subprocess.run(
-            [
-                gs,
-                "-dSAFER",
-                "-dBATCH",
-                "-dNOPAUSE",
-                "-sDEVICE=pdfwrite",
-                "-sProcessColorModel=DeviceGray",
-                "-sColorConversionStrategy=Gray",
-                "-dOverrideICC",
-                f"-sOutputFile={out_pdf}",
-                str(in_pdf),
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0 or not out_pdf.exists():
-            raise RuntimeError(f"Grayscale conversion failed.\n{proc.stdout.strip()}")
-
-        return out_pdf.read_bytes()
-
-
 def parse_args(argv):
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--id", dest="student_id")
@@ -369,7 +307,6 @@ def parse_args(argv):
     date_group = parser.add_mutually_exclusive_group()
     date_group.add_argument("--date", nargs="?", const="today", dest="date")
     date_group.add_argument("--npdate", action="store_true", dest="npdate")
-    parser.add_argument("--color", action="store_true", dest="force_color")
     parser.add_argument("--nummeth", action="store_true", dest="nummeth")
     parser.add_argument("-h", "--help", action="store_true", dest="help")
     return parser.parse_known_args(argv[1:])
@@ -384,7 +321,6 @@ def generate_cover_pdf(
     department=None,
     date=None,
     npdate=False,
-    color=False,
     nummeth=False,
 ):
     selected_template = NUMMETH_TEMPLATE_PATH if nummeth else TEMPLATE_PATH
@@ -439,9 +375,6 @@ def generate_cover_pdf(
         submission_date,
     )
     pdf_bytes = convert_docx_to_pdf(docx_bytes, roll_no)
-    if not color:
-        pdf_bytes = convert_pdf_to_grayscale(pdf_bytes, roll_no)
-
     return roll_no, pdf_bytes
 
 
@@ -470,7 +403,6 @@ def main(argv):
             department=args.department,
             date=args.date,
             npdate=args.npdate,
-            color=args.force_color,
             nummeth=args.nummeth,
         )
     except Exception as exc:

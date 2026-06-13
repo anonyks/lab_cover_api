@@ -7,7 +7,7 @@ This is a quick, human-readable reference for how `cover_api.py` behaves in real
 
 ## Common Commands
 
-Minimal run (ID only, grayscale by default):
+Minimal run (ID only):
 
 ```bash
 ./cover_api.py --id="14"
@@ -17,12 +17,6 @@ Standard run:
 
 ```bash
 ./cover_api.py --labnum=1 --title="Digital Logic" --id="14"
-```
-
-Keep color output:
-
-```bash
-./cover_api.py --labnum=1 --title="Digital Logic" --id="14" --color
 ```
 
 Use name from CSV (no `--name`):
@@ -89,7 +83,6 @@ Rules:
 
 Requirements:
 - LibreOffice (for DOCX -> PDF)
-- Ghostscript (for grayscale output)
 - `nepali-datetime` package (only for `--npdate`)
 
 Limits:
@@ -102,7 +95,6 @@ Limits:
 - `Invalid --id` -> check ID format exactly.
 - `Student name not found` -> add `--name="Your Name"`.
 - `LibreOffice not found` -> install LibreOffice.
-- `Ghostscript not found` -> install Ghostscript or use `--color`.
 - `Invalid --date format` -> use `YYYY-MM-DD`.
 - `--npdate needs package 'nepali-datetime'` -> run `pip3 install nepali-datetime`.
 

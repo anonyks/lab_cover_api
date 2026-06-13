@@ -21,7 +21,6 @@ Detailed CLI behavior, edge cases, and troubleshooting are in `info.md`.
 
 - Python 3.9+
 - LibreOffice
-- Ghostscript (only for grayscale mode)
 
 Install Python dependencies:
 
@@ -44,11 +43,11 @@ Default URL: `http://127.0.0.1:8008`
 ## Temporary Hosted URL
 
 Current temporary public URL:
-https://comics-submission-declined-network.trycloudflare.com/
+https://property-affix-frozen.ngrok-free.dev/
 
 Useful paths:
 - `/` for web UI
 - `/health` for health check
 - `/generate` for API requests
 
-Note: this is a trycloudflare tunnel URL and may change whenever the tunnel restarts.
+Note: this is an ngrok free tunnel URL and may change whenever the tunnel restarts.

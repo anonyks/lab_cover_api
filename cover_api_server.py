@@ -31,7 +31,6 @@ class CoverRequest(BaseModel):
     depart: Optional[str] = None
     date: Optional[str] = None
     npdate: bool = False
-    color: bool = False
     nummeth: bool = False
 
 
@@ -59,7 +58,6 @@ def generate_cover(payload: CoverRequest):
             department=payload.depart,
             date=payload.date,
             npdate=payload.npdate,
-            color=payload.color,
             nummeth=payload.nummeth,
         )
     except Exception as exc:

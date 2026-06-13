@@ -138,7 +138,6 @@
                 <div class="actions">
                     <button type="submit">Generate PDF</button>
                     <label class="toggle"><input id="nummeth" type="checkbox" /> Nummeth template</label>
-                    <label class="toggle"><input id="color" type="checkbox" /> Color output</label>
                 </div>
             </form>
 
@@ -264,7 +263,6 @@
                 depart: pick(document.getElementById('depart').value),
                 date: dateTodayEl.checked ? 'today' : dateValue,
                 npdate: npdateTodayEl.checked,
-                color: document.getElementById('color').checked,
                 nummeth: nummethEl.checked,
             };
 
