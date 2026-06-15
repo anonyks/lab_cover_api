@@ -85,6 +85,33 @@ def normalize_english_date(value):
     return clean
 
 
+def subtract_7_days(date_str, npdate=False):
+    """Subtract 7 days from a YYYY-MM-DD string, using the right calendar."""
+    import datetime as _dt
+    if npdate:
+        if nep_dt is None:
+            raise ValueError("nepali-datetime required for BS lab date calculation.")
+        try:
+            y, m, d = (int(part) for part in date_str.split("-"))
+            bs_date = nep_dt.date(y, m, d)
+            bs_date = bs_date - _dt.timedelta(days=7)
+            return f"{bs_date.year:04d}-{bs_date.month:02d}-{bs_date.day:02d}"
+        except Exception:
+            # Some inputs may be AD dates even when npdate is set.
+            # Fall back to Gregorian arithmetic instead of failing hard.
+            try:
+                ad_date = _dt.date.fromisoformat(date_str) - _dt.timedelta(days=7)
+                return ad_date.isoformat()
+            except Exception:
+                raise ValueError(f"Cannot subtract 7 days from date: {date_str!r}")
+
+    try:
+        ad_date = _dt.date.fromisoformat(date_str) - _dt.timedelta(days=7)
+        return ad_date.isoformat()
+    except Exception:
+        raise ValueError(f"Cannot subtract 7 days from date: {date_str!r}")
+
+
 def resolve_submission_date(date_value, npdate=False):
     if date_value is not None and npdate:
         raise ValueError("Use only one date mode: --date, --npdate, or --date=YYYY-MM-DD")
@@ -125,7 +152,43 @@ def split_department_text(department, width=22):
     )
 
 
-def update_document_xml(xml, *, name, roll_no, lab_num, report_title, department, submission_date):
+def _sanitize_filename_value(value, *, compact_words=False):
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    if compact_words:
+        text = re.sub(r"\s+", "", text)
+        text = re.sub(r"[^A-Za-z0-9]", "", text)
+        return text.lower()
+    # Keep alnum, underscore, hyphen, and dot; strip the rest.
+    text = re.sub(r"[^A-Za-z0-9._-]", "", text)
+    return text
+
+
+def build_output_filename(*, mode, lab_num, title, submission_date, student_id):
+    mode_part = "nummeth" if mode == "nummeth" else "lab"
+
+    cleaned_lab = _sanitize_filename_value(lab_num)
+    if cleaned_lab and not re.fullmatch(r"[.]+", cleaned_lab):
+        lab_part = f"lab{cleaned_lab}"
+    else:
+        lab_part = ""
+
+    title_words = str(title or "").strip().split()
+    title_tail = " ".join(title_words[-3:]) if title_words else ""
+    title_part = _sanitize_filename_value(title_tail, compact_words=True)
+    date_part = _sanitize_filename_value(submission_date)
+    id_part = _sanitize_filename_value(student_id)
+
+    parts = [p for p in [mode_part, lab_part, title_part, date_part, id_part, "cover"] if p]
+    filename = "_".join(parts) + ".pdf"
+    # Keep filenames manageable across filesystems.
+    return filename[:120]
+
+
+def update_document_xml(xml, *, name, roll_no, lab_num, report_title, department, submission_date, lab_date=None):
     xml = replace_split_placeholder(xml, "student_name", name, " ")
     # New template uses {{roll_num}}; keep {{roll_no}} fallback for compatibility.
     xml = replace_split_placeholder(xml, "roll_num", roll_no, ": ")
@@ -145,18 +208,23 @@ def update_document_xml(xml, *, name, roll_no, lab_num, report_title, department
         title_line_1, title_line_2 = split_report_title(report_title)
         escaped_title_1 = html.escape(title_line_1, quote=True)
         escaped_title_2 = html.escape(title_line_2, quote=True)
+        # Line 1: replace dots after label (include optional trailing lone dot)
         xml = re.sub(
-            r"A Report on:\s*[\.…]+",
+            r"A Report on:\s*[\.…]+\.?",
             f"A Report on: {escaped_title_1}",
             xml,
             count=1,
         )
+        # Line 2: replace dots-only run with title_line_2 while preserving
+        # template whitespace around the dots (nummeth uses leading spaces here).
         xml = re.sub(
-            r">[\.…]{10,}<",
-            f">{escaped_title_2}<",
+            r">(\s*)[\.…]{6,}(\s*)<",
+            lambda m: f">{m.group(1)}{escaped_title_2}{m.group(2)}<",
             xml,
             count=1,
         )
+        # Clear the lone '.' run that immediately follows the dots run in the same paragraph
+        xml = re.sub(r"(<w:t[^>]*>)\.(</w:t></w:r></w:p>)", r"\1\2", xml, count=1)
 
     if department is not None:
         dep_line_1, dep_line_2, dep_line_3 = split_department_text(department)
@@ -164,27 +232,35 @@ def update_document_xml(xml, *, name, roll_no, lab_num, report_title, department
         dep_line_2 = html.escape(dep_line_2, quote=True)
         dep_line_3 = html.escape(dep_line_3, quote=True)
 
-        # The default department spans three fixed lines in the template.
-        # We overwrite each line individually by matching its static text.
         xml = xml.replace(">Department of<", f">{dep_line_1}<", 1)
         xml = xml.replace(">Computer and<", f">{dep_line_2}<", 1)
-        # "Electronics Engineering" is sometimes split across two runs by Word.
+        xml = xml.replace(">Electronics Engineering<", f">{dep_line_3}<", 1)
+
+    # Lab Date (nummeth only) must be explicit: manual/auto value only.
+    # If lab_date is omitted, template dots are kept untouched.
+    # The template has "Lab Date: ……<tab>...………" all in one run; replace both dot segments.
+    if lab_date:
+        escaped_lab_date = html.escape(lab_date, quote=True)
         xml = re.sub(
-            r"Electronics Engineerin(?:</w:t></w:r><w:r[^>]*><w:rPr>.*?</w:rPr><w:t>)?g",
-            dep_line_3,
+            r"Lab Date:\s*[\.…]+",
+            f"Lab Date: {escaped_lab_date}",
             xml,
             count=1,
-            flags=re.DOTALL,
         )
 
     if submission_date:
         escaped_submission_date = html.escape(submission_date, quote=True)
+        # "Submission Date:" and "Signature" share a run in nummeth.
+        # Keep template spacing and add 8 spaces before Signature for alignment.
         xml = re.sub(
-            r"Submission Date:\s*[\.…]+",
-            f"Submission Date: {escaped_submission_date}",
+            r"Submission Date:\s*[\.…]+(\s*Signature)?",
+            lambda m: f"Submission Date: {escaped_submission_date}"
+            + (re.sub(r"Signature", "       Signature", m.group(1), count=1) if m.group(1) else ""),
             xml,
             count=1,
         )
+        # In updated templates, Signature may be in a separate run; indent it explicitly.
+        xml = re.sub(r"<w:t>Signature</w:t>", r"<w:t xml:space=\"preserve\">      Signature</w:t>", xml, count=1)
 
     return xml
 
@@ -203,13 +279,12 @@ def load_students(csv_path):
 
 
 def replace_split_placeholder(xml_text, key, value, prefix):
-    # Word splits placeholder text across multiple XML runs with spellcheck markers,
-    # e.g. " {{student_name}}" becomes three separate <w:r> elements.
-    # This pattern reassembles all those pieces and replaces them with a single run.
+    # Word splits "...{{key}}" across XML runs with proofErr spellcheck markers.
+    # The {{ may appear at the END of a run that already contains label text
+    # (e.g. "Name: {{"), or at the start of its own run (" {{").
+    # Capture whatever precedes {{ in that run and preserve it.
     pattern = (
-        r"(<w:t[^>]*>)"
-        + re.escape(prefix)
-        + r"\{\{</w:t></w:r>"
+        r"(<w:t[^>]*>[^<]*?)\{\{</w:t></w:r>"
         + r"<w:proofErr w:type=\"spellStart\"/>"
         + r"<w:r[^>]*><w:rPr>.*?</w:rPr><w:t>"
         + re.escape(key)
@@ -217,17 +292,18 @@ def replace_split_placeholder(xml_text, key, value, prefix):
         + r"<w:proofErr w:type=\"spellEnd\"/>"
         + r"<w:r[^>]*><w:rPr>.*?</w:rPr><w:t>\}\}</w:t></w:r>"
     )
-
     escaped_value = html.escape(value, quote=True)
-    escaped_prefix = html.escape(prefix, quote=True)
-    replacement = f"<w:t xml:space=\"preserve\">{escaped_prefix}{escaped_value}</w:t></w:r>"
-
-    result = re.sub(pattern, replacement, xml_text, flags=re.DOTALL)
-    # Fallback for templates where Word didn't split the placeholder into separate runs.
+    result = re.sub(
+        pattern,
+        lambda m: m.group(1) + escaped_value + "</w:t></w:r>",
+        xml_text,
+        flags=re.DOTALL,
+    )
+    # Fallback for templates where Word didn't split the placeholder at all.
     return result.replace("{{" + key + "}}", escaped_value)
 
 
-def fill_template(template_path, name, roll_no, lab_num, report_title, department, submission_date):
+def fill_template(template_path, name, roll_no, lab_num, report_title, department, submission_date, lab_date=None):
     # A .docx is just a zip - we repack it in-memory with only document.xml patched.
     with zipfile.ZipFile(template_path, "r") as zin:
         # delete=False because on Windows you can't open a file twice while it's open.
@@ -248,6 +324,7 @@ def fill_template(template_path, name, roll_no, lab_num, report_title, departmen
                             report_title=report_title,
                             department=department,
                             submission_date=submission_date,
+                            lab_date=lab_date,
                         )
                         data = xml.encode("utf-8")
                     zout.writestr(item, data)
@@ -308,6 +385,7 @@ def parse_args(argv):
     date_group.add_argument("--date", nargs="?", const="today", dest="date")
     date_group.add_argument("--npdate", action="store_true", dest="npdate")
     parser.add_argument("--nummeth", action="store_true", dest="nummeth")
+    parser.add_argument("--labdate", dest="lab_date")
     parser.add_argument("-h", "--help", action="store_true", dest="help")
     return parser.parse_known_args(argv[1:])
 
@@ -322,6 +400,8 @@ def generate_cover_pdf(
     date=None,
     npdate=False,
     nummeth=False,
+    lab_date=None,
+    labdate_auto_src=None,  # 'today' | 'subdate' -> compute -7 days server-side
 ):
     selected_template = NUMMETH_TEMPLATE_PATH if nummeth else TEMPLATE_PATH
 
@@ -335,6 +415,23 @@ def generate_cover_pdf(
         lab_num = "........"
 
     submission_date = resolve_submission_date(date, npdate=npdate)
+
+    # Auto-compute lab_date server-side so BS arithmetic works correctly.
+    if nummeth and lab_date is None and labdate_auto_src in ('today', 'subdate'):
+        if labdate_auto_src == 'today':
+            if npdate:
+                if nep_dt is None:
+                    raise ValueError("nepali-datetime required for Nepali lab date.")
+                bs = nep_dt.date.today()
+                base = f"{bs.year:04d}-{bs.month:02d}-{bs.day:02d}"
+            else:
+                import datetime as _dt
+                base = _dt.date.today().isoformat()
+        else:  # subdate
+            if not submission_date:
+                raise ValueError("Set a submission date before using 'subtract from submission date'.")
+            base = submission_date
+        lab_date = subtract_7_days(base, npdate=npdate)
     roll_no = normalize_student_id(student_id)
 
     students = load_students(CSV_PATH)
@@ -373,9 +470,19 @@ def generate_cover_pdf(
         title,
         department,
         submission_date,
+        lab_date=lab_date if nummeth else None,
     )
     pdf_bytes = convert_docx_to_pdf(docx_bytes, roll_no)
-    return roll_no, pdf_bytes
+    return (
+        roll_no,
+        pdf_bytes,
+        {
+            "submission_date": submission_date,
+            "lab_num": lab_num,
+            "title": title,
+            "mode": "nummeth" if nummeth else "lab",
+        },
+    )
 
 
 def main(argv):
@@ -395,7 +502,7 @@ def main(argv):
         return 1
 
     try:
-        roll_no, pdf_bytes = generate_cover_pdf(
+        roll_no, pdf_bytes, meta = generate_cover_pdf(
             student_id=args.student_id,
             name=args.name,
             lab_num=args.lab_num,
@@ -404,12 +511,19 @@ def main(argv):
             date=args.date,
             npdate=args.npdate,
             nummeth=args.nummeth,
+            lab_date=args.lab_date,
         )
     except Exception as exc:
         print(f"Failed to generate cover: {exc}")
         return 1
 
-    out_file = BASE_DIR / f"{roll_no}_cover.pdf"
+    out_file = BASE_DIR / build_output_filename(
+        mode=meta["mode"],
+        lab_num=meta["lab_num"],
+        title=meta["title"],
+        submission_date=meta["submission_date"],
+        student_id=roll_no,
+    )
     out_file.write_bytes(pdf_bytes)
     print(f"Generated: {out_file}")
     return 0

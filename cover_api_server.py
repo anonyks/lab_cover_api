@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
-from cover_api import generate_cover_pdf
+from cover_api import build_output_filename, generate_cover_pdf
 
 
 app = FastAPI(title="Thapathali Cover API", version="1.0.0")
@@ -32,6 +32,8 @@ class CoverRequest(BaseModel):
     date: Optional[str] = None
     npdate: bool = False
     nummeth: bool = False
+    labdate: Optional[str] = None          # explicit manual date
+    labdate_auto_src: Optional[str] = None  # 'today' | 'subdate' -> server computes -7 days
 
 
 @app.get("/health")
@@ -50,7 +52,7 @@ def ui():
 @app.post("/generate")
 def generate_cover(payload: CoverRequest):
     try:
-        roll_no, pdf_bytes = generate_cover_pdf(
+        roll_no, pdf_bytes, meta = generate_cover_pdf(
             student_id=payload.id,
             name=payload.name,
             lab_num=payload.labnum,
@@ -59,15 +61,25 @@ def generate_cover(payload: CoverRequest):
             date=payload.date,
             npdate=payload.npdate,
             nummeth=payload.nummeth,
+            lab_date=payload.labdate,
+            labdate_auto_src=payload.labdate_auto_src,
         )
     except Exception as exc:
         # Keep API errors readable for frontend and quick manual testing.
         raise HTTPException(status_code=400, detail=str(exc))
 
+    download_name = build_output_filename(
+        mode=meta["mode"],
+        lab_num=meta["lab_num"],
+        title=meta["title"],
+        submission_date=meta["submission_date"],
+        student_id=roll_no,
+    )
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{roll_no}_cover.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )
 
 

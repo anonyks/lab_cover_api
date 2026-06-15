@@ -6,303 +6,461 @@
     <title>Thapathali Cover Generator</title>
     <style>
         :root {
-            --bg: #f5f7fb;
-            --panel: #ffffff;
-            --ink: #0f172a;
-            --muted: #475569;
-            --line: #dbe2ea;
-            --brand: #1e40af;
-            --brand-2: #2563eb;
+            --bg: #0f1117;
+            --surface: #1a1d2e;
+            --surface2: #222537;
+            --border: #2e3150;
+            --border-focus: #6366f1;
+            --ink: #e2e8f0;
+            --muted: #8892aa;
+            --accent: #6366f1;
+            --accent2: #818cf8;
+            --green: #22c55e;
+            --red: #f87171;
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            margin: 0;
-            font-family: Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
             color: var(--ink);
-            background: radial-gradient(1200px 700px at 20% -10%, #dbeafe, transparent), var(--bg);
+            min-height: 100vh;
         }
-        .wrap {
-            max-width: 900px;
-            margin: 28px auto;
-            padding: 0 16px;
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(99,102,241,.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99,102,241,.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        .wrap { max-width: 780px; margin: 40px auto; padding: 0 20px 60px; }
+        .header { text-align: center; margin-bottom: 36px; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3);
+            border-radius: 99px; padding: 4px 14px; font-size: 12px;
+            color: var(--accent2); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 14px;
+        }
+        .header h1 {
+            font-size: 32px; font-weight: 700;
+            background: linear-gradient(135deg, #e2e8f0 30%, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .header p { margin-top: 8px; color: var(--muted); font-size: 14px; }
+        .mode-switch {
+            display: flex; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 4px; margin-bottom: 28px; gap: 4px;
+        }
+        .mode-btn {
+            flex: 1; padding: 10px 16px; border: none; border-radius: 9px;
+            font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: all .2s; background: transparent; color: var(--muted);
+        }
+        .mode-btn.active {
+            background: var(--accent); color: #fff;
+            box-shadow: 0 2px 12px rgba(99,102,241,.4);
         }
         .card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 20px; padding: 28px; position: relative; overflow: hidden;
         }
-        h1 { margin: 0 0 8px; font-size: 28px; }
-        p.sub { margin: 0 0 24px; color: var(--muted); }
-        form { margin: 0; }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
+        .card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99,102,241,.5), transparent);
         }
+        .section-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 11px; font-weight: 600; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 14px; margin-top: 24px;
+        }
+        .section-label:first-of-type { margin-top: 0; }
+        .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .full { grid-column: 1 / -1; }
         .field { display: flex; flex-direction: column; gap: 6px; }
-        .field.full { grid-column: 1 / -1; }
-        label { font-size: 13px; color: var(--muted); }
+        .field label { font-size: 12px; font-weight: 500; color: var(--muted); }
+        .field label .req { color: var(--accent2); margin-left: 2px; }
         input[type="text"] {
-            width: 100%;
-            height: 40px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            padding: 0 12px;
-            font-size: 14px;
-            outline: none;
-            background: #fff;
+            width: 100%; height: 42px; background: var(--surface2);
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 0 14px; font-size: 14px; color: var(--ink);
+            outline: none; transition: border-color .15s, box-shadow .15s;
         }
-        input[type="text"]:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-        input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            margin: 0;
-            accent-color: var(--brand-2);
+        input[type="text"]::placeholder { color: #4b5563; }
+        input[type="text"]:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
+        input[type="text"]:disabled { opacity: .4; cursor: not-allowed; }
+        .toggle-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; background: var(--surface2);
+            border: 1px solid var(--border); border-radius: 10px;
+            cursor: pointer; transition: border-color .15s; user-select: none;
         }
-        .actions {
-            margin-top: 18px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
+        .toggle-row:hover { border-color: var(--accent); }
+        .toggle-row input[type="checkbox"], .toggle-row input[type="radio"] {
+            accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer;
         }
-        button {
-            height: 42px;
-            border: 0;
-            border-radius: 10px;
-            background: linear-gradient(90deg, var(--brand), var(--brand-2));
-            color: #fff;
-            padding: 0 16px;
-            font-weight: 600;
-            cursor: pointer;
+        .toggle-row span { font-size: 13px; color: var(--ink); flex: 1; }
+        .toggle-row .hint { font-size: 11px; color: var(--muted); }
+        .date-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+        .date-tab { flex: 1; min-width: 130px; }
+        .preview-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25);
+            border-radius: 8px; padding: 7px 14px; font-size: 12px; color: var(--accent2);
+            min-height: 32px; margin-top: 10px;
         }
-        .toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
-        .status { margin-top: 12px; font-size: 14px; color: var(--muted); min-height: 20px; }
-        .err { color: #b91c1c; }
-        .ok { color: #166534; }
+        .preview-pill:empty { display: none; }
+        .divider { height: 1px; background: var(--border); margin: 20px 0; }
+        .nm-pill {
+            margin-left: 4px; font-size: 10px;
+            background: rgba(99,102,241,.15); color: var(--accent2);
+            padding: 2px 8px; border-radius: 99px;
+            text-transform: none; letter-spacing: 0;
+        }
+        .actions { margin-top: 28px; }
+        .btn-generate {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; height: 48px; border: none; border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+            transition: opacity .15s, transform .1s, box-shadow .15s;
+            box-shadow: 0 4px 20px rgba(99,102,241,.35); letter-spacing: .2px;
+        }
+        .btn-generate:hover:not(:disabled) { opacity: .92; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,.5); }
+        .btn-generate:active:not(:disabled) { transform: translateY(0); }
+        .btn-generate:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+        .btn-generate .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+            border-radius: 50%; animation: spin .6s linear infinite; display: none;
+        }
+        .btn-generate.loading .spinner { display: block; }
+        .btn-generate.loading .btn-text { opacity: .7; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status-bar {
+            margin-top: 16px; padding: 12px 16px; border-radius: 10px;
+            font-size: 13px; display: none; align-items: center; gap: 8px;
+        }
+        .status-bar.show { display: flex; }
+        .status-bar.ok  { background: rgba(34,197,94,.1);  border: 1px solid rgba(34,197,94,.3);  color: #86efac; }
+        .status-bar.err { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: #fca5a5; }
+        .status-bar.info{ background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.3);  color: var(--accent2); }
         .hidden { display: none !important; }
-        @media (max-width: 760px) {
-            .wrap { margin: 14px auto; }
-            .card { padding: 16px; border-radius: 12px; }
-            h1 { font-size: 24px; }
+        @media (max-width: 600px) {
+            .wrap { margin: 16px auto; padding: 0 12px 40px; }
+            .header h1 { font-size: 24px; }
+            .card { padding: 18px; border-radius: 16px; }
             .grid { grid-template-columns: 1fr; }
-            .actions { flex-direction: column; align-items: stretch; }
-            .actions button { width: 100%; }
+            .date-tabs { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <div class="card">
-            <h1>Thapathali Cover Generator</h1>
-            <p id="mode-hint" class="sub">Fill only what you need. ID is required, other fields are optional.</p>
-
-            <form id="cover-form">
-                <div class="grid">
-                    <div class="field">
-                        <label for="id">ID *</label>
-                        <input type="text" id="id" name="id" placeholder="14 or 081BCT014 or THA081BCT014" required />
-                    </div>
-                    <div id="field-name" class="field">
-                        <label for="name">Name</label>
-                        <input type="text" id="name" name="name" placeholder="john doe" />
-                    </div>
-
-                    <div id="field-labnum" class="field">
-                        <label for="labnum">Lab Number</label>
-                        <input type="text" id="labnum" name="labnum" placeholder="3" />
-                    </div>
-                    <div id="field-title" class="field">
-                        <label for="title">Report Title</label>
-                        <input type="text" id="title" name="title" placeholder="Signals" />
-                    </div>
-
-                    <div id="field-depart" class="field full">
-                        <label for="depart">Department (optional override)</label>
-                        <input type="text" id="depart" name="depart" placeholder="Department of electronics and computer enginerring (default)" />
-                    </div>
-
-                    <div id="field-date-en" class="field">
-                        <label>Date Option (today)</label>
-                        <label class="toggle"><input id="date_today" type="checkbox" /> Use today's English date</label>
-                        <input type="text" id="date_value" placeholder="Or type date: YYYY-MM-DD" />
-                    </div>
-                    <div id="field-date-np" class="field">
-                        <label>&nbsp;</label>
-                        <label class="toggle"><input id="npdate_today" type="checkbox" /> Use today's Nepali date</label>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <button type="submit">Generate PDF</button>
-                    <label class="toggle"><input id="nummeth" type="checkbox" /> Nummeth template</label>
-                </div>
-            </form>
-
-            <div id="status" class="status"></div>
-        </div>
+<div class="wrap">
+    <div class="header">
+        <div class="badge">&#9670; Thapathali Campus</div>
+        <h1>Cover Page Generator</h1>
+        <p>Generate lab cover PDFs for BCT 081 batch</p>
     </div>
 
-    <script>
-        const form = document.getElementById('cover-form');
-        const statusEl = document.getElementById('status');
-        const dateTodayEl = document.getElementById('date_today');
-        const npdateTodayEl = document.getElementById('npdate_today');
-        const dateValueEl = document.getElementById('date_value');
-        const nummethEl = document.getElementById('nummeth');
-        const modeHintEl = document.getElementById('mode-hint');
-        const titleEl = document.getElementById('title');
-        const departEl = document.getElementById('depart');
-        const labnumEl = document.getElementById('labnum');
-        const fieldTitleEl = document.getElementById('field-title');
-        const fieldDepartEl = document.getElementById('field-depart');
-        const fieldDateEnEl = document.getElementById('field-date-en');
-        const fieldDateNpEl = document.getElementById('field-date-np');
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    <div class="mode-switch">
+        <button class="mode-btn active" id="mode-lab" type="button" onclick="setMode('lab')">&#128196; Lab Report</button>
+        <button class="mode-btn" id="mode-nm" type="button" onclick="setMode('nummeth')">&#x221E; Numerical Methods</button>
+    </div>
 
-        function pick(v) {
-            const t = (v || '').trim();
-            return t.length ? t : undefined;
+    <div class="card">
+        <form id="cover-form" autocomplete="off">
+
+            <div class="section-label">Student</div>
+            <div class="grid">
+                <div class="field">
+                    <label for="id">Student ID <span class="req">*</span></label>
+                    <input type="text" id="id" placeholder="14  or  081BCT014  or  THA081BCT014" />
+                </div>
+                <div class="field">
+                    <label for="name">Name <span style="color:#4b5563;font-weight:400">(auto from CSV)</span></label>
+                    <input type="text" id="name" placeholder="john doe" />
+                </div>
+            </div>
+
+            <div class="section-label">Report</div>
+            <div class="grid">
+                <div class="field">
+                    <label for="labnum" id="labnum-label">Lab Number</label>
+                    <input type="text" id="labnum" placeholder="3" />
+                </div>
+                <div class="field">
+                    <label for="title">Report Title</label>
+                    <input type="text" id="title" placeholder="Stack Applications" />
+                </div>
+                <div id="field-depart" class="field full">
+                    <label for="depart">Department <span style="color:#4b5563;font-weight:400">(optional override)</span></label>
+                    <input type="text" id="depart" placeholder="Department of Computer and Electronics Engineering" />
+                </div>
+            </div>
+
+            <div class="section-label">Submission Date</div>
+            <div class="grid">
+                <div class="date-tabs full">
+                    <div class="date-tab">
+                        <label class="toggle-row" for="date_today">
+                            <input type="checkbox" id="date_today" />
+                            <span>Today (English)</span>
+                        </label>
+                    </div>
+                    <div class="date-tab">
+                        <label class="toggle-row" for="npdate_today">
+                            <input type="checkbox" id="npdate_today" />
+                            <span>Today (Nepali BS)</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="field full">
+                    <label for="date_value">Or type a date</label>
+                    <input type="text" id="date_value" placeholder="YYYY-MM-DD" />
+                </div>
+            </div>
+
+            <!-- Nummeth Lab Date -->
+            <div id="field-labdate" class="hidden">
+                <div class="divider"></div>
+                <div class="section-label">Lab Date <span class="nm-pill">Numerical Methods</span></div>
+                <div class="grid">
+                    <div class="field full">
+                        <label class="toggle-row" for="labdate_auto">
+                            <input type="checkbox" id="labdate_auto" />
+                            <span>Auto-calculate &mdash; subtract 7 days from&hellip;</span>
+                        </label>
+                    </div>
+                    <div id="labdate_src_row" class="full hidden">
+                        <div class="date-tabs">
+                            <div class="date-tab">
+                                <label class="toggle-row" for="labdate_from_today">
+                                    <input type="radio" name="labdate_src" id="labdate_from_today" value="today" checked />
+                                    <span>Today</span>
+                                    <span class="hint" id="labdate_today_hint"></span>
+                                </label>
+                            </div>
+                            <div class="date-tab">
+                                <label class="toggle-row" for="labdate_from_subdate">
+                                    <input type="radio" name="labdate_src" id="labdate_from_subdate" value="subdate" />
+                                    <span>Submission date above</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="labdate_preview" class="preview-pill"></div>
+                    </div>
+                    <div class="field full">
+                        <label for="labdate_manual">Or type manually</label>
+                        <input type="text" id="labdate_manual" placeholder="YYYY-MM-DD" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-generate" type="submit" id="submit-btn">
+                    <div class="spinner"></div>
+                    <span class="btn-text">Generate PDF</span>
+                </button>
+            </div>
+
+        </form>
+        <div id="status-bar" class="status-bar"></div>
+    </div>
+</div>
+
+<script>
+    const form            = document.getElementById('cover-form');
+    const submitBtn       = document.getElementById('submit-btn');
+    const statusBar       = document.getElementById('status-bar');
+    const dateTodayEl     = document.getElementById('date_today');
+    const npdateTodayEl   = document.getElementById('npdate_today');
+    const dateValueEl     = document.getElementById('date_value');
+    const fieldDepartEl   = document.getElementById('field-depart');
+    const departEl        = document.getElementById('depart');
+    const fieldLabDateEl  = document.getElementById('field-labdate');
+    const labdateAutoEl   = document.getElementById('labdate_auto');
+    const labdateSrcRowEl = document.getElementById('labdate_src_row');
+    const labdatePreviewEl= document.getElementById('labdate_preview');
+    const labdateManualEl = document.getElementById('labdate_manual');
+    const labnumLabelEl   = document.getElementById('labnum-label');
+    const labnumEl        = document.getElementById('labnum');
+    const titleEl         = document.getElementById('title');
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    let currentMode = 'lab';
+
+    function pick(v) { const t = (v || '').trim(); return t || undefined; }
+
+    function subtractDays(dateStr, days) {
+        const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+        if (isNaN(d)) return '';
+        d.setDate(d.getDate() - days);
+        return d.toISOString().slice(0, 10);
+    }
+
+    function getSubmissionDateValue() {
+        if (dateTodayEl.checked) return new Date().toISOString().slice(0, 10);
+        return pick(dateValueEl.value) || '';
+    }
+
+    function setStatus(type, html) {
+        const icons = { ok: '&#10003;', err: '&#10005;', info: '&#9702;' };
+        statusBar.className = 'status-bar show ' + type;
+        statusBar.innerHTML = '<span>' + (icons[type] || '') + '</span><span>' + html + '</span>';
+    }
+    function clearStatus() { statusBar.className = 'status-bar'; statusBar.innerHTML = ''; }
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('mode-lab').classList.toggle('active', mode === 'lab');
+        document.getElementById('mode-nm').classList.toggle('active', mode === 'nummeth');
+        const isNm = mode === 'nummeth';
+
+        fieldDepartEl.classList.toggle('hidden', isNm);
+        departEl.disabled = isNm;
+        if (isNm) departEl.value = '';
+
+        fieldLabDateEl.classList.toggle('hidden', !isNm);
+        if (!isNm) {
+            labdateAutoEl.checked = false;
+            labdateSrcRowEl.classList.add('hidden');
+            labdatePreviewEl.textContent = '';
+            labdateManualEl.value = '';
+            labdateManualEl.disabled = false;
         }
 
-        dateTodayEl.addEventListener('change', () => {
-            if (dateTodayEl.checked) {
-                npdateTodayEl.checked = false;
-                dateValueEl.value = '';
-            }
-        });
+        labnumLabelEl.textContent = isNm ? 'Lab Sheet Number' : 'Lab Number';
+        labnumEl.placeholder = isNm ? 'Optional (blank = ..........)' : '3';
+        titleEl.placeholder = isNm ? 'Bisection Method' : 'Stack Applications';
+        submitBtn.querySelector('.btn-text').textContent = isNm ? 'Generate Nummeth PDF' : 'Generate PDF';
+        clearStatus();
+    }
 
-        npdateTodayEl.addEventListener('change', () => {
-            if (npdateTodayEl.checked) {
-                dateTodayEl.checked = false;
-                dateValueEl.value = '';
-            }
-        });
+    dateTodayEl.addEventListener('change', () => {
+        if (dateTodayEl.checked) { npdateTodayEl.checked = false; dateValueEl.value = ''; }
+        updateLabDatePreview();
+    });
+    npdateTodayEl.addEventListener('change', () => {
+        if (npdateTodayEl.checked) { dateTodayEl.checked = false; dateValueEl.value = ''; }
+    });
+    dateValueEl.addEventListener('input', () => {
+        if (dateValueEl.value.trim()) { dateTodayEl.checked = false; npdateTodayEl.checked = false; }
+        updateLabDatePreview();
+    });
 
-        dateValueEl.addEventListener('input', () => {
-            if (dateValueEl.value.trim()) {
-                dateTodayEl.checked = false;
-                npdateTodayEl.checked = false;
-            }
-        });
-
-        function setNummethMode(enabled) {
-            fieldTitleEl.classList.toggle('hidden', enabled);
-            fieldDepartEl.classList.toggle('hidden', enabled);
-            fieldDateEnEl.classList.toggle('hidden', enabled);
-            fieldDateNpEl.classList.toggle('hidden', enabled);
-
-            titleEl.disabled = enabled;
-            departEl.disabled = enabled;
-            dateTodayEl.disabled = enabled;
-            npdateTodayEl.disabled = enabled;
-            dateValueEl.disabled = enabled;
-
-            if (enabled) {
-                // Nummeth template only needs student, roll and lab placeholders.
-                titleEl.value = '';
-                departEl.value = '';
-                dateTodayEl.checked = false;
-                npdateTodayEl.checked = false;
-                dateValueEl.value = '';
-                labnumEl.placeholder = 'Optional (default: ..........)';
-                submitBtn.textContent = 'Generate Nummeth PDF';
-                modeHintEl.textContent = 'Nummeth mode: only ID is required. Name and Lab Number are optional; other fields are hidden.';
-            } else {
-                labnumEl.placeholder = '3';
-                submitBtn.textContent = 'Generate PDF';
-                modeHintEl.textContent = 'Fill only what you need. ID is required, other fields are optional.';
+    function updateLabDatePreview() {
+        if (!labdateAutoEl.checked) { labdatePreviewEl.innerHTML = ''; return; }
+        const src = document.querySelector('input[name="labdate_src"]:checked')?.value;
+        const isBS = npdateTodayEl.checked;
+        if (src === 'subdate') {
+            const subVal = pick(dateValueEl.value) || (dateTodayEl.checked ? 'today (English)' : (isBS ? 'today (BS)' : ''));
+            if (!subVal && !dateTodayEl.checked && !isBS) {
+                labdatePreviewEl.innerHTML = 'Set a submission date above first';
+                return;
             }
         }
+        labdatePreviewEl.innerHTML = isBS
+            ? '&#x2192; Server will calculate Lab Date in BS (today &minus; 7 days)'
+            : '&#x2192; Server will calculate Lab Date (today &minus; 7 days)';
+    }
 
-        nummethEl.addEventListener('change', () => setNummethMode(nummethEl.checked));
-        setNummethMode(nummethEl.checked);
+    document.getElementById('labdate_today_hint').textContent = '(' + subtractDays('', 7) + ' approx)';
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const idValue = document.getElementById('id').value.trim();
-            if (!idValue) {
-                statusEl.className = 'status err';
-                statusEl.textContent = 'ID is required.';
-                return;
-            }
+    npdateTodayEl.addEventListener('change', updateLabDatePreview);
+    dateTodayEl.addEventListener('change', updateLabDatePreview);
 
-            if (submitBtn.disabled) {
-                return;
-            }
+    labdateAutoEl.addEventListener('change', () => {
+        labdateSrcRowEl.classList.toggle('hidden', !labdateAutoEl.checked);
+        labdateManualEl.disabled = labdateAutoEl.checked;
+        if (labdateAutoEl.checked) labdateManualEl.value = '';
+        updateLabDatePreview();
+    });
+    document.querySelectorAll('input[name="labdate_src"]').forEach(r =>
+        r.addEventListener('change', updateLabDatePreview)
+    );
 
-            submitBtn.disabled = true;
-            statusEl.className = 'status';
-            statusEl.textContent = 'Generating...';
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearStatus();
 
-            const dateValue = pick(dateValueEl.value);
+        const idVal = document.getElementById('id').value.trim();
+        if (!idVal) { setStatus('err', 'Student ID is required.'); return; }
+        if (submitBtn.disabled) return;
 
-            if (dateValue && !DATE_RE.test(dateValue)) {
-                statusEl.className = 'status err';
-                statusEl.textContent = 'Date must be YYYY-MM-DD.';
-                submitBtn.disabled = false;
-                return;
-            }
+        const dateVal = pick(dateValueEl.value);
+        if (dateVal && !DATE_RE.test(dateVal)) { setStatus('err', 'Submission date must be YYYY-MM-DD.'); return; }
+        const dateModes = (dateTodayEl.checked ? 1 : 0) + (npdateTodayEl.checked ? 1 : 0) + (dateVal ? 1 : 0);
+        if (dateModes > 1) { setStatus('err', 'Pick only one date option.'); return; }
 
-            const selectedModes = (dateTodayEl.checked ? 1 : 0) + (npdateTodayEl.checked ? 1 : 0) + (dateValue ? 1 : 0);
-            if (selectedModes > 1) {
-                statusEl.className = 'status err';
-                statusEl.textContent = 'Use only one date mode: English today, Nepali today, or typed date.';
-                submitBtn.disabled = false;
-                return;
-            }
-
-            const payload = {
-                id: idValue,
-                name: pick(document.getElementById('name').value),
-                labnum: pick(document.getElementById('labnum').value),
-                title: pick(document.getElementById('title').value),
-                depart: pick(document.getElementById('depart').value),
-                date: dateTodayEl.checked ? 'today' : dateValue,
-                npdate: npdateTodayEl.checked,
-                nummeth: nummethEl.checked,
-            };
-
-            try {
-                const res = await fetch('/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-
-                if (!res.ok) {
-                    let msg = 'Request failed';
-                    try {
-                        const err = await res.json();
-                        msg = err.detail || msg;
-                    } catch (_) {}
-                    throw new Error(msg);
+        let labdate, labdate_auto_src;
+        if (currentMode === 'nummeth') {
+            if (labdateAutoEl.checked) {
+                const src = document.querySelector('input[name="labdate_src"]:checked')?.value;
+                labdate_auto_src = src; // 'today' or 'subdate' - server computes -7 days
+                // Validate: if subdate, make sure there's a submission date
+                if (src === 'subdate') {
+                    const hasSub = dateTodayEl.checked || npdateTodayEl.checked || pick(dateValueEl.value);
+                    if (!hasSub) { setStatus('err', 'Set a submission date before using subtract from submission date.'); return; }
                 }
-
-                const blob = await res.blob();
-                const disposition = res.headers.get('Content-Disposition') || '';
-                const match = disposition.match(/filename="?([^";]+)"?/i);
-                const serverFileName = match ? match[1] : null;
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = serverFileName || (payload.id || 'cover') + '_cover.pdf';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(a.href);
-
-                statusEl.className = 'status ok';
-                statusEl.textContent = 'PDF generated and downloaded.';
-            } catch (err) {
-                statusEl.className = 'status err';
-                statusEl.textContent = err.message || String(err);
-            } finally {
-                submitBtn.disabled = false;
+            } else {
+                const manual = pick(labdateManualEl.value);
+                if (manual && !DATE_RE.test(manual)) { setStatus('err', 'Lab date must be YYYY-MM-DD.'); return; }
+                labdate = manual;
             }
-        });
-    </script>
+        }
+
+        const payload = {
+            id: idVal,
+            name: pick(document.getElementById('name').value),
+            labnum: pick(document.getElementById('labnum').value),
+            title: pick(document.getElementById('title').value),
+            depart: currentMode === 'lab' ? pick(document.getElementById('depart').value) : undefined,
+            date: dateTodayEl.checked ? 'today' : dateVal,
+            npdate: npdateTodayEl.checked,
+            nummeth: currentMode === 'nummeth',
+            labdate,
+            labdate_auto_src,
+        };
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+        setStatus('info', 'Generating&hellip;');
+
+        try {
+            const res = await fetch('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                let msg = 'Server error';
+                try { const j = await res.json(); msg = j.detail || msg; } catch (_) {}
+                throw new Error(msg);
+            }
+            const blob = await res.blob();
+            const cd = res.headers.get('Content-Disposition') || '';
+            const m = cd.match(/filename="?([^";]+)"?/i);
+            const fname = m ? m[1] : idVal + '_cover.pdf';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fname;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(a.href);
+            setStatus('ok', 'Downloaded: ' + fname);
+        } catch (err) {
+            setStatus('err', err.message || String(err));
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    });
+
+    setMode('lab');
+</script>
 </body>
 </html>
