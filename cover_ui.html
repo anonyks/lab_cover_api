@@ -444,13 +444,14 @@
             const cd = res.headers.get('Content-Disposition') || '';
             const m = cd.match(/filename="?([^";]+)"?/i);
             const fname = m ? m[1] : idVal + '_cover.pdf';
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
+            a.href = url;
             a.download = fname;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            URL.revokeObjectURL(a.href);
+            URL.revokeObjectURL(url);
             setStatus('ok', 'Downloaded: ' + fname);
         } catch (err) {
             setStatus('err', err.message || String(err));

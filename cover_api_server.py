@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -16,7 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent
 UI_HTML_PATH = BASE_DIR / "cover_ui.html"
 
 
-@lru_cache(maxsize=1)
 def load_ui_html():
     if not UI_HTML_PATH.exists():
         raise RuntimeError(f"UI file not found: {UI_HTML_PATH}")
@@ -64,9 +62,12 @@ def generate_cover(payload: CoverRequest):
             lab_date=payload.labdate,
             labdate_auto_src=payload.labdate_auto_src,
         )
-    except Exception as exc:
-        # Keep API errors readable for frontend and quick manual testing.
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {exc}")
 
     download_name = build_output_filename(
         mode=meta["mode"],

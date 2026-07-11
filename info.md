@@ -19,6 +19,18 @@ Standard run:
 ./cover_api.py --labnum=1 --title="Digital Logic" --id="14"
 ```
 
+Numerical methods run:
+
+```bash
+./cover_api.py --nummeth --labnum=3 --title="Bisection Method" --id="14" --date
+```
+
+Numerical methods with Nepali submission date:
+
+```bash
+./cover_api.py --nummeth --labnum=3 --title="Bisection Method" --id="14" --npdate
+```
+
 Use name from CSV (no `--name`):
 
 ```bash
@@ -72,12 +84,28 @@ Rules:
 - `--npdate=...` is not supported.
 - Invalid date formats (like `08-06-2026`) are rejected.
 
+## Numerical Methods Mode
+
+- `--nummeth` uses the `bct_info/nummeth_cover.docx` template.
+- In this mode, if `--labnum` is omitted, it defaults to `..........`.
+- `--depart` is ignored in this mode.
+- Lab Date is optional and is mainly used by the API/UI flow.
+- When lab date auto-subtract is used from the UI/API, the server subtracts 7 days and handles BS dates correctly.
+
 ## Output
 
-- Output file name format: `<normalized_id>_cover.pdf`
+- Output file name format:
+  - `lab_<labnum>_<last_3_title_words>_<submission_date>_<normalized_id>_cover.pdf`
+  - `nummeth_<labnum>_<last_3_title_words>_<submission_date>_<normalized_id>_cover.pdf`
 - Examples:
-  - `THA081BCT014_cover.pdf`
-  - `081BCT014_cover.pdf`
+  - `lab_lab2_stackapplications_2026-06-15_THA081BCT014_cover.pdf`
+  - `nummeth_lab3_bisectionmethod_2026-06-15_THA081BCT014_cover.pdf`
+
+Filename notes:
+- `labnum` becomes `lab2`, `lab3`, etc. - not `lab_2`.
+- The title part uses at most the last 3 words.
+- The title part is compacted to lowercase letters/numbers only.
+- The ID part always uses the normalized roll, for example `THA081BCT014`.
 
 ## Requirements and Limits
 
@@ -104,3 +132,8 @@ Limits:
 - `GET /health`
 - `GET /` (web UI)
 - `POST /generate`
+
+The web UI supports:
+- Lab Report mode and Numerical Methods mode
+- English or Nepali submission dates
+- Numerical Methods lab-date auto calculation or manual entry

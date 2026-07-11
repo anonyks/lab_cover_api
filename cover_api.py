@@ -23,7 +23,8 @@ TEMPLATE_PATH = BASE_DIR / "bct_info" / "Cover_template.docx"
 NUMMETH_TEMPLATE_PATH = BASE_DIR / "bct_info" / "nummeth_cover.docx"
 CSV_PATH = BASE_DIR / "bct_info" / "BCT081_students_data.csv"
 
-# Three accepted ID shapes: bare number (14), short (081BCT014), full (THA081BCT014)
+NUMMETH_DEFAULT_LAB = ".........."  # matches blank dots in nummeth_cover.docx
+
 ID_NUMERIC_RE = re.compile(r"\d{1,3}")
 ID_SHORT_RE = re.compile(r"\d{3}BCT\d{3}")
 ID_THA_RE = re.compile(r"THA\d{3}BCT\d{3}")
@@ -412,7 +413,7 @@ def generate_cover_pdf(
         )
 
     if nummeth and lab_num is None:
-        lab_num = "........"
+        lab_num = NUMMETH_DEFAULT_LAB
 
     submission_date = resolve_submission_date(date, npdate=npdate)
 
@@ -448,7 +449,7 @@ def generate_cover_pdf(
         lab_num = lab_num.strip()
         if not lab_num:
             if nummeth:
-                lab_num = ".........."
+                lab_num = NUMMETH_DEFAULT_LAB
             else:
                 raise ValueError("--labnum cannot be empty.")
 

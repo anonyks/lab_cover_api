@@ -39,15 +39,3 @@ python3 cover_api_server.py
 - `POST /generate`
 
 Default URL: `http://127.0.0.1:8008`
-
-## Temporary Hosted URL
-
-Current temporary public URL:
-https://property-affix-frozen.ngrok-free.dev/
-
-Useful paths:
-- `/` for web UI
-- `/health` for health check
-- `/generate` for API requests
-
-Note: this is an ngrok free tunnel URL and may change whenever the tunnel restarts.
